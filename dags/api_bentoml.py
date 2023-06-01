@@ -31,7 +31,7 @@ bento_path = os.path.join(tutorial_dir_path, "bentoml")
 def importmlflow():
     import mlflow
     import bentoml
-    
+    mlflow.set_experiment("mlops1")
 
    # registered_model = mlflow.register_model(
       #      model_uri, "Classifier")
@@ -53,7 +53,6 @@ def install_dependencies():
     for package in packages:
         subprocess.check_call(['pip', 'install', package])
 
-# Appel de la fonction pour installer les dépendances
 
 
 
@@ -90,10 +89,9 @@ def predict(input_text: Features):
     with open("service.py", "w") as file:
         # Écrire le contenu dans le fichier
         file.write(content)
-    
-    #os.system('ls')
-   # command = ['ls']
-    command = ['bentoml', 'serve', 'service:svc','--port','3200']
+ 
+ 
+    command = ['bentoml', 'serve', 'service:svc','--port','3000']
     #command = ['cat','service.py']
     try:
         output = subprocess.check_output(command, text=True, stderr=subprocess.STDOUT)
@@ -116,9 +114,7 @@ with DAG(
 ) as dag:
     import os
     import mlflow
-   # mlflow.set_tracking_uri("http://localhost:5000")
-   # mlflow.set_experiment("projet")
-   # mlflow.sklearn.autolog(silent=True, log_models=False)
+
     mlflow.set_experiment("mlops1")
     os.environ["AWS_ACCESS_KEY_ID"] = "mlflow_access"
     os.environ["AWS_SECRET_ACCESS_KEY"] = "mlflow_secret"
