@@ -5,7 +5,11 @@ import typing
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel
-
+import nltk
+nltk.download('omw-1.4')
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('wordnet')
 import bentoml
 from bentoml.io import JSON
 from bentoml.io import NumpyNdarray
