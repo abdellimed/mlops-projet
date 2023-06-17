@@ -30,7 +30,7 @@ bento_path = os.path.join(tutorial_dir_path, "bentoml")
 def importmlflow():
     import mlflow
     import bentoml
-    mlflow.set_experiment("mlops1")
+    mlflow.set_experiment("Projet_test")
    # registered_model = mlflow.register_model(
       #      model_uri, "Classifier")
   # Load model as a PyFuncModel.
