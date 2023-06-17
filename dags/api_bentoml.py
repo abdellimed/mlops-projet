@@ -1,4 +1,3 @@
-
 import os
 import sys
 import warnings
@@ -22,8 +21,8 @@ import mlflow.sklearn
 import mlflow.pyfunc
 import subprocess
 
-model_uri = 'runs:/936d7390adc0432884958e35e3e0abd9/model'
-port=3000
+model_uri = 'models:/classification/Production'
+port=3300
 tutorial_dir_path = dirname(dirname(abspath(__file__)))
 
 bento_path = os.path.join(tutorial_dir_path, "bentoml")
@@ -32,7 +31,6 @@ def importmlflow():
     import mlflow
     import bentoml
     mlflow.set_experiment("mlops1")
-
    # registered_model = mlflow.register_model(
       #      model_uri, "Classifier")
   # Load model as a PyFuncModel.
@@ -49,10 +47,11 @@ def importmlflow():
 # Fonction pour installer les dépendances
 def install_dependencies():
     import subprocess
-    packages = ['numpy', 'typing', 'pandas','pydantic']
+    packages = ['numpy', 'typing', 'pandas','pydantic','nltk']
     for package in packages:
-        subprocess.check_call(['pip', 'install', package])
+        subprocess.check_call(['pip3', 'install', package])
 
+# Appel de la fonction pour installer les dépendances
 
 
 
@@ -70,6 +69,11 @@ import pandas as pd
 from pydantic import BaseModel
 from bentoml.io import JSON
 from bentoml.io import NumpyNdarray
+import nltk
+nltk.download('omw-1.4')
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('wordnet')
 
 runner = bentoml.mlflow.get("comment-classifier:latest").to_runner()
 
@@ -89,18 +93,76 @@ def predict(input_text: Features):
     with open("service.py", "w") as file:
         # Écrire le contenu dans le fichier
         file.write(content)
+    
+    content2 = '''
+service: "service.py:svc"
+include:
+- "service.py"
+python:
+  packages:
+    - scikit-learn
+    - mlflow>=2.0.1
+    - pandas>=1.2.2
+    - numpy>=1.20.1
+    - shap>=0.39.0
+    - matplotlib>=3.4.1
+    - boto3==1.17.19
+    - bentoml
+    - gensim
+    - pydantic
+    - nltk
+    '''
+
+    # Ouvrir le fichier en mode écriture
+    with open("bentofile.yaml", "w") as file:
+        # Écrire le contenu dans le fichier
+        file.write(content2)
+
+    content3 = '''                                          docker-compose.yml                                                                                          
+version: "3.9"
+services:
+  classifier:
+    image: comment-classifier:latest
+    ports:
+      - 5001:3000
+    volumes:
+      - /usr/local/share/nltk_data:/usr/local/share/nltk_data
+
+'''
+   # Ouvrir le fichier en mode écriture
+    with open("docker-compose.yml", "w") as file:
+        # Écrire le contenu dans le fichier
+        file.write(content3)
+    
+    command2 = ['bentoml','build']
+
+    try:
+        output2 = subprocess.check_output(command2, text=True, stderr=subprocess.STDOUT)
+        logging.info(f"Command2 output: {output2}")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Command execution failed with error code {e.returncode}. Output: {e.output}")
  
- 
-    command = ['bentoml', 'serve', 'service:svc','--port','3000']
+    command = ['bentoml', 'containerize','comment-classifier:latest','-t','comment-classifier:latest']
+
     #command = ['cat','service.py']
     try:
         output = subprocess.check_output(command, text=True, stderr=subprocess.STDOUT)
         logging.info(f"Command output: {output}")
     except subprocess.CalledProcessError as e:
         logging.error(f"Command execution failed with error code {e.returncode}. Output: {e.output}")
+ 
+    #command1 = ['bentoml', 'containerize','comment-classifier:latest','-t','comment-classifier:latest']
+   
+    '''
+    command2 = ['docker', 'compose','up','-d']
 
-    
-
+    #command = ['cat','service.py']
+    try:
+        output2 = subprocess.check_output(command2, text=True, stderr=subprocess.STDOUT)
+        logging.info(f"Command output: {output2}")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Command execution failed with error code {e.returncode}. Output: {e.output}")
+        '''
     
 
 
@@ -114,7 +176,9 @@ with DAG(
 ) as dag:
     import os
     import mlflow
-
+   # mlflow.set_tracking_uri("http://localhost:5000")
+   # mlflow.set_experiment("projet")
+   # mlflow.sklearn.autolog(silent=True, log_models=False)
     mlflow.set_experiment("mlops1")
     os.environ["AWS_ACCESS_KEY_ID"] = "mlflow_access"
     os.environ["AWS_SECRET_ACCESS_KEY"] = "mlflow_secret"
@@ -126,18 +190,16 @@ with DAG(
     # We assume the latest data has been loaded to the .csv files under the data folder.
     # Our data does not change, but in a practical scenario, the data could have changed since last run.
     
-    t0= PythonOperator(
-        task_id="install",
-        python_callable=install_dependencies
-    )
-
-
-    t1= PythonOperator(
-        task_id="create_service_file",
-        python_callable=create_service_file
-    )
-
   
+
+
+    t8=BashOperator(
+    task_id='docker',
+    bash_command="docker run -d -it --rm -p 3000:3000 comment-classifier:latest serve")
+    
+
+        #  bash_command="bentoml containerize comment-classifier:latest -t comment-classifier:latest"
+#ls -l /var/run/docker.sock
 
     t3= ShortCircuitOperator(
         task_id="import_mlflowmodel",
@@ -148,5 +210,16 @@ with DAG(
     task_id='bento_models',
     bash_command="bentoml models list")
 
+
+    
+    t0= PythonOperator(
+        task_id="install",
+        python_callable=install_dependencies
+    )
+    t1= PythonOperator(
+        task_id="create_service_file",
+        python_callable=create_service_file
+    )
  
-t0 >> t3 >> t5 >>  t1
+t0 >> t3 >> t5  >>t1 >> t8
+
