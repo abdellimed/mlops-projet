@@ -53,6 +53,8 @@ x-airflow-common:
 
     # Mounts the data folder to /data
     - ./data:/data
+    - '/var/run/docker.sock:/var/run/docker.sock' # We will pass the Docker Deamon as a volume to allow the webserver containers start docker images. Ref: https://stackoverflow.com/q/51342810/7024760
+    - '/tmp:/tmp'
 
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
@@ -63,6 +65,7 @@ x-airflow-common:
       condition: service_healthy
 
 services:
+
 
   # This container runs the postgresql database for mlflow.
   postgres-mlflow:
@@ -173,6 +176,7 @@ services:
   airflow-webserver:
     <<: *airflow-common
     command: webserver
+    image: airflow-webserver
     ports:
       - 8080:8080
     healthcheck:
@@ -190,6 +194,8 @@ services:
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
+    image: airflow-scheduler
+
     healthcheck:
       test: ["CMD-SHELL", 'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"']
       interval: 10s
@@ -205,6 +211,7 @@ services:
   airflow-worker:
     <<: *airflow-common
     command: celery worker
+    image: airflow-worker 
     healthcheck:
       test:
         - "CMD-SHELL"
@@ -218,6 +225,7 @@ services:
       # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
       DUMB_INIT_SETSID: "0"
     restart: always
+
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -226,6 +234,7 @@ services:
   airflow-triggerer:
     <<: *airflow-common
     command: triggerer
+    image: airflow-triggerer
     healthcheck:
       test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
       interval: 10s
@@ -303,6 +312,7 @@ services:
         mkdir -p /sources/logs /sources/dags /sources/plugins /sources/mlflow-data
         chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins,mlflow-data}
         exec /entrypoint airflow version
+      #  exec /entrypoint airflow version 
     # yamllint enable rule:line-length
     environment:
       <<: *airflow-common-env
