@@ -1,5 +1,16 @@
 service: "service.py:svc"
 include:
 - "service.py"
-conda:
-  environment_yml: ./conda.yaml
+python:
+  packages:
+    - scikit-learn
+    - mlflow>=2.0.1
+    - pandas>=1.2.2
+    - numpy>=1.20.1
+    - shap>=0.39.0
+    - matplotlib>=3.4.1
+    - boto3==1.17.19
+    - bentoml
+    - gensim
+    - pydantic
+    - nltk
